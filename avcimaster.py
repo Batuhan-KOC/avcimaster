@@ -1,31 +1,38 @@
+import threading
+from enum import Enum
 from UnityCommunicationController import UnityCommunicationController
+from UserCommunicationController import UserCommunicationController
 
 class AvciMaster:
-    def __init__(self):
-        self.unityStarted = False
-        self.unityInitializationReadyMessageReceived = False
-        self.unityEnvironmentStartedMessageReceived = False
-        self.unityEnvironmentStoppedMessageReceived = False
+    class State(Enum):
+        WAITING_START_SIMULATION_MESSAGE_FROM_USER = 0
+        SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY = 1
+        WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY = 2
 
+    def __init__(self):
+        self.InitializeState()
         self.InitializeControllers()
 
-    def UnityInitializationReadyMessageReceived(self):
-        self.unityInitializationReadyMessageReceived = True
+    def InitializeState(self):
+        self.state = self.State.WAITING_START_SIMULATION_MESSAGE_FROM_USER
 
-    def UnityEnvironmentStartedMessageReceived(self):
-        self.unityEnvironmentStartedMessageReceived = True
-
-    def UnityEnvironmentStoppedMessageReceived(self):
-        self.unityEnvironmentStoppedMessageReceived = True
+    ####################################################################
+    # MESSAGE INITIALIZERS
+    ####################################################################
         
     def InitializeUnityCommunicationController(self):
         self.unityCommunicationController = UnityCommunicationController()
-        self.unityCommunicationController.SetUnityInitializationReadyMessageCallback(self.UnityInitializationReadyMessageReceived)
-        self.unityCommunicationController.SetUnityEnvironmentStartedMessageCallback(self.UnityEnvironmentStartedMessageReceived)
-        self.unityCommunicationController.SetUnityEnvironmentStoppedMessageCallback(self.UnityEnvironmentStoppedMessageReceived)
+
+    def InitializeUserCommunicationController(self):
+        self.userCommunicationController = UserCommunicationController()
 
     def InitializeControllers(self):
         self.InitializeUnityCommunicationController()
+        self.InitializeUserCommunicationController()
+
+    ####################################################################
+    # C. UNITY PROCESS START STOP FUNCTIONS
+    ####################################################################
 
     def StartUnityProcess(self):
         pass
@@ -33,10 +40,35 @@ class AvciMaster:
     def StopUnityProcess(self):
         pass
 
+    ####################################################################
+    # D. OWN CLASS FUNCTIONS AND MEMBERS
+    ####################################################################
+
+    def WaitingStartSimulationMessageFromUserUpdate(self):
+        userSimulationStartMessageReceived = self.userCommunicationController.GetUserStartSimulationMessageReceived()
+
+        if(userSimulationStartMessageReceived):
+            self.state = self.State.SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY
+
+    def SendStartUnityEnvironmentMessageToUnityUpdate(self):
+        self.unityCommunicationController.SetSendStartUnityEnvironmentMessage()
+
+        self.state = self.State.WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY
+
     def Update(self):
-        if not self.unityInitializationReadyMessageReceived:
-            return
-        pass
+        unityInitializationReadyMessageReceived = False
+
+        while not unityInitializationReadyMessageReceived:
+            unityInitializationReadyMessageReceived = UnityCommunicationController.GetUnityInitializationReadyMessageReceived()
+        
+        while True:
+            match self.state:
+                case self.State.WAITING_START_SIMULATION_MESSAGE_FROM_USER:
+                    self.WaitingStartSimulationMessageFromUserUpdate()
+                case self.State.SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY:
+                    self.SendStartUnityEnvironmentMessageToUnityUpdate()
+                case self.State.WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY:
+                    pass # TODO
 
     def Terminate(self):
         pass
