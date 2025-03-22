@@ -1,108 +1,59 @@
 import threading
 import socket
 
+from SharedData import SharedData
+
 class UnityCommunicationController:
     def __init__(self):
-        self._InitializeReceiveMessagesAndMutexes()
+        self._InitializeReceiveMessages()
+        self._InitializeTransmitMessages()
+        self._CreateAndStartControllerThread()
 
+    def _CreateAndStartControllerThread(self):
         self._thread = threading.Thread(target=self._run)
         self._thread.daemon = True
         self._running = True
-
         self._thread.start()
 
-    def _InitializeReceiveMessagesAndMutexes(self):
-        self._unityEnvironmentStartedMessageReceivedMutex = threading.Lock()
-        self._unityEnvironmentStartedMessageReceived = False
+    def _InitializeReceiveMessages(self):
+        self._unityEnvironmentStartedMessageReceived = SharedData(False)
+        self._unityEnvironmentStoppedMessageReceived = SharedData(False)
+        self._unityInitializationReadyMessageReceived = SharedData(False)
 
-        self._unityEnvironmentStoppedMessageReceivedMutex = threading.Lock()
-        self._unityEnvironmentStoppedMessageReceived = False
-
-        self._unityInitializationReadyMessageReceivedMutex = threading.Lock()
-        self._unityInitializationReadyMessageReceived = False
-
-    def _InitializeTransmitMessagesAndMutexes(self):
-        self._sendStartUnityEnvironmentMessageMutex = threading.Lock()
-        self._sendStartUnityEnvironmentMessage = False
-
-        self._sendStopUnityEnvironmentMessageMutex = threading.Lock()
-        self._sendStopUnityEnvironmentMessage = False
-
-    def _SetUnityEnvironmentStartedMessageReceived(self):
-        self._unityEnvironmentStartedMessageReceivedMutex.acquire()
-        self._unityEnvironmentStartedMessageReceived = True
-        self._unityEnvironmentStartedMessageReceivedMutex.release()
-
-    def _SetUnityEnvironmentStoppedMessageReceived(self):
-        self._unityEnvironmentStoppedMessageReceivedMutex.acquire()
-        self._unityEnvironmentStoppedMessageReceived = True
-        self._unityEnvironmentStoppedMessageReceivedMutex.release()
-
-    def _SetUnityInitializationReadyMessageReceived(self):
-        self._unityInitializationReadyMessageReceivedMutex.acquire()
-        self._unityInitializationReadyMessageReceived = True
-        self._unityInitializationReadyMessageReceivedMutex.release()
+    def _InitializeTransmitMessages(self):
+        self._sendStartUnityEnvironmentMessage = SharedData(False)
+        self._sendStopUnityEnvironmentMessage = SharedData(False)
 
     def GetUnityEnvironmentStartedMessageReceived(self)->bool:
-        self._unityEnvironmentStartedMessageReceivedMutex.acquire()
-        value = self._unityEnvironmentStartedMessageReceived
-        self._unityEnvironmentStartedMessageReceived = False
-        self._unityEnvironmentStartedMessageReceivedMutex.release()
-        return value
+        return self._unityEnvironmentStartedMessageReceived.GetAndSet(False)
 
     def GetUnityEnvironmentStoppedMessageReceived(self)->bool:
-        self._unityEnvironmentStoppedMessageReceivedMutex.acquire()
-        value = self._unityEnvironmentStoppedMessageReceived
-        self._unityEnvironmentStoppedMessageReceived = False
-        self._unityEnvironmentStoppedMessageReceivedMutex.release()
-        return value
+        return self._unityEnvironmentStoppedMessageReceived.GetAndSet(False)
 
     def GetUnityInitializationReadyMessageReceived(self)->bool:
-        self._unityInitializationReadyMessageReceivedMutex.acquire()
-        value = self._unityInitializationReadyMessageReceived
-        self._unityInitializationReadyMessageReceived = False
-        self._unityInitializationReadyMessageReceivedMutex.release()
-        return value
+        return self._unityInitializationReadyMessageReceived.GetAndSet(False)
     
     def SetSendStartUnityEnvironmentMessage(self):
-        self._sendStartUnityEnvironmentMessageMutex.acquire()
-        self._sendStartUnityEnvironmentMessage = True
-        self._sendStartUnityEnvironmentMessageMutex.release()
+        return self._sendStartUnityEnvironmentMessage.Set(True)
 
     def SetSendStopUnityEnvironmentMessage(self):
-        self._sendStopUnityEnvironmentMessageMutex.acquire()
-        self._sendStopUnityEnvironmentMessage = True
-        self._sendStopUnityEnvironmentMessageMutex.release()
-
-    def _GetSendStartUnityEnvironmentMessage(self):
-        self._sendStartUnityEnvironmentMessageMutex.acquire()
-        value = self._sendStartUnityEnvironmentMessage
-        self._sendStartUnityEnvironmentMessage = False
-        self._sendStartUnityEnvironmentMessageMutex.release()
-        return value
-
-    def _GetSendStopUnityEnvironmentMessage(self):
-        self._sendStopUnityEnvironmentMessageMutex.acquire()
-        value = self._sendStopUnityEnvironmentMessage
-        self._sendStopUnityEnvironmentMessage = False
-        self._sendStopUnityEnvironmentMessageMutex.release()
-        return value
+        return self._sendStopUnityEnvironmentMessage.Set(True)
 
     def Terminate(self):
         self._running = False
 
-    def _Initialize10006Socket(self):
+    def _Initialize10006ReceiveSocket(self):
         self._Socket10006 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._Socket10006.bind("0.0.0.0", 10006)
         self._Socket10006.setblocking(False)
 
-    def _Initialize10003Socket(self):
+    def _Initialize10003TransmitSocket(self):
         self._Socket10003 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    def _SendMessageFrom10003Socket(self, message):
+    def _SendMessageFrom10003TransmitSocket(self, message):
         self._Socket10003.sendto(message, ("127.0.0.1", 10003))
 
-    def _Read10006Socket(self):
+    def _Read10006ReceiveSocket(self):
         try:
             data, addr = self._Socket10006.recvfrom(1)
 
@@ -111,35 +62,35 @@ class UnityCommunicationController:
             unityEnvironmentInitializationReady = bool(data & 0b00000100)
 
             if unityEnvironmentStarted:
-                self._SetUnityEnvironmentStartedMessageReceived()
+                self._unityEnvironmentStartedMessageReceived.Set(True)
             if unityEnvironmentStopped:
-                self._SetUnityEnvironmentStoppedMessageReceived()
+                self._unityEnvironmentStoppedMessageReceived.Set(True)
             if unityEnvironmentInitializationReady:
-                self._SetUnityInitializationReadyMessageReceived()
+                self._unityInitializationReadyMessageReceived.Set(True)
         except BlockingIOError:
             pass # No data available
 
     def _ReadMessage(self):
-        self._Read10006Socket()
+        self._Read10006ReceiveSocket()
 
     def _SendMessageOnPort10003(self):
-        sendStartUnityEnvironmentMessage = self._GetSendStartUnityEnvironmentMessage()
-        sendStopUnityEnvironmentMessage = self._GetSendStopUnityEnvironmentMessage()
+        sendStartUnityEnvironmentMessage = self._sendStartUnityEnvironmentMessage.GetAndSet(False)
+        sendStopUnityEnvironmentMessage = self._sendStopUnityEnvironmentMessage.GetAndSet(False)
 
         if sendStartUnityEnvironmentMessage:
             message = 0b00000001
-            self._SendMessageFrom10003Socket(message)
+            self._SendMessageFrom10003TransmitSocket(message)
 
         if sendStopUnityEnvironmentMessage:
             message = 0b00000010
-            self._SendMessageFrom10003Socket(message)
+            self._SendMessageFrom10003TransmitSocket(message)
 
     def _SendMessage(self):
         self._SendMessageOnPort10003()
 
     def _run(self):
-        self._Initialize10003Socket()
-        self._Initialize10006Socket()
+        self._Initialize10003TransmitSocket()
+        self._Initialize10006ReceiveSocket()
 
         while(self._running):
             self._ReadMessage()

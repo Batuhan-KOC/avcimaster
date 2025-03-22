@@ -8,6 +8,7 @@ class AvciMaster:
         WAITING_START_SIMULATION_MESSAGE_FROM_USER = 0
         SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY = 1
         WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY = 2
+        START_PX4_SITL_SIMULATION = 3
 
     def __init__(self):
         self.InitializeState()
@@ -47,13 +48,19 @@ class AvciMaster:
     def WaitingStartSimulationMessageFromUserUpdate(self):
         userSimulationStartMessageReceived = self.userCommunicationController.GetUserStartSimulationMessageReceived()
 
-        if(userSimulationStartMessageReceived):
+        if userSimulationStartMessageReceived:
             self.state = self.State.SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY
 
     def SendStartUnityEnvironmentMessageToUnityUpdate(self):
         self.unityCommunicationController.SetSendStartUnityEnvironmentMessage()
 
         self.state = self.State.WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY
+
+    def WaitingUnityEnvironmentStartedMessageFromUnityUpdate(self):
+        unityEnvironmentStartedMessageReceived = self.unityCommunicationController.GetUnityEnvironmentStartedMessageReceived()
+
+        if unityEnvironmentStartedMessageReceived:
+            self.state = self.State.START_PX4_SITL_SIMULATION
 
     def Update(self):
         unityInitializationReadyMessageReceived = False
@@ -68,6 +75,8 @@ class AvciMaster:
                 case self.State.SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY:
                     self.SendStartUnityEnvironmentMessageToUnityUpdate()
                 case self.State.WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY:
+                    self.WaitingUnityEnvironmentStartedMessageFromUnityUpdate()
+                case self.State.START_PX4_SITL_SIMULATION:
                     pass # TODO
 
     def Terminate(self):
