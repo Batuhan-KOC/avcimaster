@@ -2,6 +2,7 @@ import threading
 from enum import Enum
 from UnityCommunicationController import UnityCommunicationController
 from UserCommunicationController import UserCommunicationController
+from PX4SITLProcessController import PX4SITLProcessController
 
 class AvciMaster:
     class State(Enum):
@@ -9,6 +10,7 @@ class AvciMaster:
         SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY = 1
         WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY = 2
         START_PX4_SITL_SIMULATION = 3
+        WAITING_STOP_SIMULATION_MESSAGE_FROM_USER = 4
 
     def __init__(self):
         self.InitializeState()
@@ -26,10 +28,14 @@ class AvciMaster:
 
     def InitializeUserCommunicationController(self):
         self.userCommunicationController = UserCommunicationController()
+        
+    def InitializePX4SITLProcessController(self):
+        self.px4SitlProcessController = PX4SITLProcessController()
 
     def InitializeControllers(self):
         self.InitializeUnityCommunicationController()
         self.InitializeUserCommunicationController()
+        self.InitializePX4SITLProcessController()
 
     ####################################################################
     # C. UNITY PROCESS START STOP FUNCTIONS
@@ -61,6 +67,18 @@ class AvciMaster:
 
         if unityEnvironmentStartedMessageReceived:
             self.state = self.State.START_PX4_SITL_SIMULATION
+            
+    def StartPx4SitlSimulationUpdate(self):
+        sitlProcessControllerState = self.px4SitlProcessController.GetState
+        
+        if sitlProcessControllerState is PX4SITLProcessController.State.IDLE:
+            self.px4SitlProcessController.StartSITL()
+            
+        if sitlProcessControllerState is PX4SITLProcessController.State.STARTED:
+            self.state = self.State.WAITING_STOP_SIMULATION_MESSAGE_FROM_USER
+            
+    def WaitingStopSimulationMessageFromUserUpdate(self):
+        pass # TODO
 
     def Update(self):
         unityInitializationReadyMessageReceived = False
@@ -77,7 +95,9 @@ class AvciMaster:
                 case self.State.WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY:
                     self.WaitingUnityEnvironmentStartedMessageFromUnityUpdate()
                 case self.State.START_PX4_SITL_SIMULATION:
-                    pass # TODO
+                    self.StartPx4SitlSimulationUpdate()
+                case self.State.WAITING_STOP_SIMULATION_MESSAGE_FROM_USER:
+                    self.WaitingStopSimulationMessageFromUserUpdate()
 
     def Terminate(self):
         pass
