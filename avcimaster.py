@@ -11,6 +11,7 @@ class AvciMaster:
         WAITING_UNITY_ENVIRONMENT_STARTED_MESSAGE_FROM_UNITY = 2
         START_PX4_SITL_SIMULATION = 3
         WAITING_STOP_SIMULATION_MESSAGE_FROM_USER = 4
+        STOP_PX4_SITL_SIMULATION = 5
 
     def __init__(self):
         self.InitializeState()
@@ -78,7 +79,13 @@ class AvciMaster:
             self.state = self.State.WAITING_STOP_SIMULATION_MESSAGE_FROM_USER
             
     def WaitingStopSimulationMessageFromUserUpdate(self):
-        pass # TODO
+        userSimulationStopMessageReceived = self.userCommunicationController.GetUserStopSimulationMessageReceived()
+
+        if userSimulationStopMessageReceived:
+            self.state = self.State.STOP_PX4_SITL_SIMULATION
+            
+    def StopPx4SitlSimulationUpdate(self):
+        pass # Todo
 
     def Update(self):
         unityInitializationReadyMessageReceived = False
@@ -98,6 +105,8 @@ class AvciMaster:
                     self.StartPx4SitlSimulationUpdate()
                 case self.State.WAITING_STOP_SIMULATION_MESSAGE_FROM_USER:
                     self.WaitingStopSimulationMessageFromUserUpdate()
+                case self.State.STOP_PX4_SITL_SIMULATION:
+                    self.StopPx4SitlSimulationUpdate()
 
     def Terminate(self):
         pass
