@@ -43,19 +43,19 @@ class UnityCommunicationController:
         self._running = False
 
     def _Initialize10006ReceiveSocket(self):
-        self._Socket10006 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._Socket10006.bind("0.0.0.0", 10006)
-        self._Socket10006.setblocking(False)
+        self._ReceiveSocket10006 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._ReceiveSocket10006.bind("0.0.0.0", 10006)
+        self._ReceiveSocket10006.setblocking(False)
 
     def _Initialize10003TransmitSocket(self):
-        self._Socket10003 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._TransmitSocket10003 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def _SendMessageFrom10003TransmitSocket(self, message):
-        self._Socket10003.sendto(message, ("127.0.0.1", 10003))
+        self._TransmitSocket10003.sendto(message, ("127.0.0.1", 10003))
 
     def _Read10006ReceiveSocket(self):
         try:
-            data, addr = self._Socket10006.recvfrom(1)
+            data, addr = self._ReceiveSocket10006.recvfrom(1)
 
             unityEnvironmentStarted = bool(data & 0b00000001)
             unityEnvironmentStopped = bool(data & 0b00000010)
@@ -89,8 +89,8 @@ class UnityCommunicationController:
         self._SendMessageOnPort10003()
 
     def _run(self):
-        self._Initialize10003TransmitSocket()
         self._Initialize10006ReceiveSocket()
+        self._Initialize10003TransmitSocket()
 
         while(self._running):
             self._ReadMessage()

@@ -61,14 +61,14 @@ class PX4SITLProcessController:
 
     def _StopPX4Simulation(self):
         self._sitlTerminate = True
-        
-        self.SetState(self.State.STOPPED)
 
         self._sitlThread.join()
         self._mavlinkThread.join()
         
         self._sitlThread = None
         self._mavlinkThread = None
+        
+        self.SetState(self.State.STOPPED)
 
     def _RunPX4Simulation(self):
         self._takeOffCommandSendToSitl = False
