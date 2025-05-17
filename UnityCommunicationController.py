@@ -8,7 +8,10 @@ class UnityCommunicationController:
         self._InitializeReceiveMessages()
         self._InitializeTransmitMessages()
         self._CreateAndStartControllerThread()
-
+        
+    def Terminate(self):
+        pass
+    
     def _CreateAndStartControllerThread(self):
         self._thread = threading.Thread(target=self._run)
         self._thread.daemon = True
@@ -41,6 +44,9 @@ class UnityCommunicationController:
 
     def Terminate(self):
         self._running = False
+        self._thread.join()
+        self._ReceiveSocket10006.close()
+        self._TransmitSocket10003.close()
 
     def _Initialize10006ReceiveSocket(self):
         self._ReceiveSocket10006 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

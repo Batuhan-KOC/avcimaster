@@ -30,6 +30,12 @@ class PX4SITLProcessController:
         self._takeOffCommandSendToSitl = False
         self._processErrorCallback = None
         self._Socket10004 = None
+        
+    def Terminate(self):
+        self._sitlTerminate = True
+        self._sitlThread.join()
+        self._mavlinkThread.join()
+        self._Socket10004.close()
 
     def StartSITL(self):
         if not self._sitlRunning:

@@ -78,7 +78,7 @@ class AvciMaster:
             self.state = self.State.START_PX4_SITL_SIMULATION
             
     def StartPx4SitlSimulationUpdate(self):
-        sitlProcessControllerState = self.px4SitlProcessController.GetState
+        sitlProcessControllerState = self.px4SitlProcessController.GetState()
         
         if sitlProcessControllerState is PX4SITLProcessController.State.IDLE:
             self.px4SitlProcessController.StartSITL()
@@ -115,6 +115,9 @@ class AvciMaster:
     def SendSimulationStoppedMessageToUser(self):
         self.userCommunicationController.SetSendSimulationStoppedMessage()
         self.state = self.State.WAITING_START_SIMULATION_MESSAGE_FROM_USER
+        
+    def Terminate(self):
+        pass
 
     def Update(self):
         unityInitializationReadyMessageReceived = False
@@ -147,12 +150,23 @@ class AvciMaster:
             time.sleep(0.1)
 
     def Terminate(self):
-        pass
+        self.px4SitlProcessController.Terminate()
+        self.unityCommunicationController.Terminate()
+        self.userCommunicationController.Terminate()
+        self.StopUnityProcess()
 
 if __name__ == "__main__":
     avciMaster = AvciMaster()
     
+    print("Staring unity.\n")
     avciMaster.StartUnityProcess()
 
-    while True:
-        avciMaster.Update()
+    try:
+        print("Starting avci master.\n")
+        while True:
+            avciMaster.Update()
+    except KeyboardInterrupt:
+        print("Terminating avci master.\n")
+        avciMaster.Terminate()
+        
+    print("Avci master process finished successfully.")

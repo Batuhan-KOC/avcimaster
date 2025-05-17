@@ -37,6 +37,9 @@ class UserCommunicationController:
 
     def Terminate(self):
         self._running = False
+        self._thread.join()
+        self._ReceiveSocket10002.close()
+        self._TransmitSocket10001.close()
 
     def _Initialize10002ReceiveSocket(self):
         self._ReceiveSocket10002 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
