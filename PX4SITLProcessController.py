@@ -4,12 +4,18 @@ import socket
 import struct
 import os
 import time
+import logging
 from enum import Enum
 from pymavlink import mavutil
 
 from SharedData import SharedData
 
+logging.basicConfig(level=logging.INFO)
+
 class PX4SITLProcessController:
+    """
+    Controls the PX4 SITL process and handles MAVLink communication.
+    """
     class State(Enum):
         IDLE = 0
         START_REQUESTED = 1
@@ -19,6 +25,7 @@ class PX4SITLProcessController:
         STOPPED = 5
 
     def __init__(self):
+        """Initialize controller state and threads."""
         self.state = SharedData(self.State.IDLE)
         self._sitlThread = None
         self._sitlProcess = None
@@ -162,16 +169,10 @@ class PX4SITLProcessController:
         
         self._mavlinkRunning = False
 
-    def _SendCommandToSitlProcess(self, command):
-        try:
-            self._sitlProcess.stdin.write(command + "\n")
-            self._sitlProcess.stdin.flush()
-        except Exception as e:
-            print(f"Error sending command: {e}")
-
     def _CreateSitlProcess(self):
+        """Creates the SITL process with the appropriate environment."""
         sitlProcessCommand = "HEADLESS=1 make px4_sitl gazebo-classic"
-        sitlProcessDirectory = "../avcipilot"
+        sitlProcessDirectory = os.path.join("..", "avcipilot")
 
         systemEnvironment = os.environ.copy()
         sitlEnvironment = systemEnvironment
@@ -184,12 +185,20 @@ class PX4SITLProcessController:
                         cwd=sitlProcessDirectory,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        stdin=subprocess.PIPE,  # Allow sending input
+                        stdin=subprocess.PIPE,
                         shell=True,
-                        text=True,  # Capture output as text
+                        text=True,
                         env=sitlEnvironment
                     )
-    
+
+    def _SendCommandToSitlProcess(self, command):
+        """Sends a command to the SITL process."""
+        try:
+            self._sitlProcess.stdin.write(command + "\n")
+            self._sitlProcess.stdin.flush()
+        except Exception as e:
+            logging.error(f"Error sending command: {e}")
+
     def _IsSitlReadyToTakeoff(self):
         for line in self._sitlProcess.stdout:
             if line.__contains__("Ready for takeoff!"):

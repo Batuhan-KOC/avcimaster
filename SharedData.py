@@ -1,24 +1,24 @@
 import threading
 
 class SharedData:
-    def __init__(self, initialData = None):
+    """Thread-safe shared data container."""
+    def __init__(self, initialData=None):
         self.data = initialData
         self._mutex = threading.Lock()
 
     def Set(self, newValue):
-        self._mutex.acquire()
-        self.data = newValue
-        self._mutex.release()
+        """Set the shared data to a new value."""
+        with self._mutex:
+            self.data = newValue
 
     def Get(self):
-        self._mutex.acquire()
-        copy = self.data
-        self._mutex.release()
-        return copy
-    
+        """Get a copy of the shared data."""
+        with self._mutex:
+            return self.data
+
     def GetAndSet(self, newValue):
-        self._mutex.acquire()
-        copy = self.data
-        self.data = newValue
-        self._mutex.release()
-        return copy
+        """Get the current value and set a new value atomically."""
+        with self._mutex:
+            copy = self.data
+            self.data = newValue
+            return copy

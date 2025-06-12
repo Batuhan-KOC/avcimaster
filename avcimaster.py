@@ -5,6 +5,9 @@ from UserCommunicationController import UserCommunicationController
 from PX4SITLProcessController import PX4SITLProcessController
 
 class AvciMaster:
+    """
+    Main controller for managing the simulation lifecycle and communication between Unity, PX4 SITL, and the user.
+    """
     class State(Enum):
         WAITING_START_SIMULATION_MESSAGE_FROM_USER = 0
         SEND_START_UNITY_ENVIRONMENT_MESSAGE_TO_UNITY = 1
@@ -18,6 +21,8 @@ class AvciMaster:
         SEND_SIMULATION_STOPPED_MESSAGE_TO_USER = 9
 
     def __init__(self):
+        """Initialize state and controllers."""
+        self._terminated = False
         self.InitializeState()
         self.InitializeControllers()
 
@@ -117,14 +122,29 @@ class AvciMaster:
         self.state = self.State.WAITING_START_SIMULATION_MESSAGE_FROM_USER
         
     def Terminate(self):
-        pass
+        """
+        Terminates all controllers and stops the Unity process.
+        """
+        if self._terminated:
+            return
+        self._terminated = True
+        self.px4SitlProcessController.Terminate()
+        self.unityCommunicationController.Terminate()
+        self.userCommunicationController.Terminate()
+        self.StopUnityProcess()
 
     def Update(self):
+        """
+        Main update loop for the AvciMaster state machine.
+        Waits for Unity initialization, then processes state transitions.
+        """
         unityInitializationReadyMessageReceived = False
 
+        # Fix: Call instance method, not class method
         while not unityInitializationReadyMessageReceived:
-            unityInitializationReadyMessageReceived = UnityCommunicationController.GetUnityInitializationReadyMessageReceived()
-        
+            unityInitializationReadyMessageReceived = self.unityCommunicationController.GetUnityInitializationReadyMessageReceived()
+            time.sleep(0.1)
+
         while True:
             match self.state:
                 case self.State.WAITING_START_SIMULATION_MESSAGE_FROM_USER:
@@ -148,12 +168,6 @@ class AvciMaster:
                 case self.State.SEND_SIMULATION_STOPPED_MESSAGE_TO_USER:
                     self.SendSimulationStoppedMessageToUser()
             time.sleep(0.1)
-
-    def Terminate(self):
-        self.px4SitlProcessController.Terminate()
-        self.unityCommunicationController.Terminate()
-        self.userCommunicationController.Terminate()
-        self.StopUnityProcess()
 
 if __name__ == "__main__":
     avciMaster = AvciMaster()
