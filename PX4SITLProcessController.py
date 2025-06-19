@@ -46,6 +46,7 @@ class PX4SITLProcessController:
 
     def StartSITL(self):
         if not self._sitlRunning:
+            print("Starting PX4 SITL simulation")
             self._StartPX4Simulation()
 
     def StopSITL(self):
@@ -60,7 +61,6 @@ class PX4SITLProcessController:
 
     def SetProcessErrorCallback(self, processErrorCallback):
         self._processErrorCallback = processErrorCallback
-        self.SetState(self.State.STOPPED)
 
     def _StartPX4Simulation(self):
         self._sitlRunning = True
@@ -88,6 +88,7 @@ class PX4SITLProcessController:
         
         processStartedWithoutError = self._TryToCreateSitlProcess()
             
+        print("SITL process created successfully." if processStartedWithoutError else "Failed to create SITL process.")
         if processStartedWithoutError:
             self._SitlProcessRunControl()
 
@@ -117,6 +118,7 @@ class PX4SITLProcessController:
         self._mavlinkRunning = True
 
         # Wait until takeoff command
+        print("Waiting for takeoff command to be sent to SITL to start mavlink.")
         while not self._takeOffCommandSendToSitl and not self._sitlTerminate:
             time.sleep(0.1)
 
@@ -125,6 +127,7 @@ class PX4SITLProcessController:
         self.SetState(self.State.INITIALIZING_MAVLINK)
 
         if not self._sitlTerminate:
+            print("Creating MAVLink connection.")
             while True:
                 try:
                     mavlinkConnection = mavutil.mavlink_connection('udp:localhost:14540')
@@ -132,13 +135,16 @@ class PX4SITLProcessController:
                 except Exception:
                     pass
             
+            print("Waiting for MAVLink heartbeat.")
             while True:
                 try:
                     mavlinkConnection.wait_heartbeat()
                     break
                 except:
                     pass
-                
+
+        print("MAVLink connection established.")
+
         self._Initialize10004TransmitSocket()
                      
         lat = 0
@@ -180,6 +186,7 @@ class PX4SITLProcessController:
         sitlEnvironment["PX4_HOME_LON"] = "1.0"
         sitlEnvironment["PX4_HOME_ALT"] = "0.0"
 
+        print(f"Creating SITL process with command: {sitlProcessCommand}")
         self._sitlProcess = subprocess.Popen(
                         sitlProcessCommand,
                         cwd=sitlProcessDirectory,
@@ -226,7 +233,9 @@ class PX4SITLProcessController:
     def _SitlPreTakeoffInitialization(self):
         takeoffReady = self._IsSitlReadyToTakeoff()
         if takeoffReady:
+            print("SITL is ready for takeoff.")
             self._InitializeAndTakeOff()
+            print("Takeoff command sent to SITL.")
             self._takeOffCommandSendToSitl = True
             
     def _SitlProcessTerminateAndWait(self):
@@ -238,6 +247,7 @@ class PX4SITLProcessController:
             self._CreateSitlProcess()
             return True
         except Exception as e:
+            print(f"Error creating SITL process: {e}")
             self._sitlTerminate = True
             return False
         
@@ -245,3 +255,7 @@ class PX4SITLProcessController:
         if alt > 48.0:
             self._initializationCompleted = True
             self.SetState(self.State.STARTED)
+            print("SITL initialization completed successfully.")
+        else:
+            print(f"Current altitude: {alt} m")
+            print('\033[F\033[K', end='')

@@ -95,6 +95,7 @@ class UserCommunicationController:
         """Reads and processes messages from the receive socket on port 10002."""
         try:
             data, addr = self._ReceiveSocket10002.recvfrom(1)
+            data = int.from_bytes(data, byteorder='big')
 
             userSimulationStart = bool(data & 0b00000001)
             userSimulationStop = bool(data & 0b00000010)

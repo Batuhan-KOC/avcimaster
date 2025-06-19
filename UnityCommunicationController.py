@@ -123,6 +123,7 @@ class UnityCommunicationController:
         """
         try:
             data, addr = self._ReceiveSocket10006.recvfrom(1)
+            data = int.from_bytes(data, byteorder='big')
 
             unityEnvironmentStarted = bool(data & 0b00000001)
             unityEnvironmentStopped = bool(data & 0b00000010)
@@ -177,4 +178,3 @@ class UnityCommunicationController:
         while(self._running):
             self._ReadMessage()
             self._SendMessage()
-
